@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
+	"log/slog"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -21,11 +21,9 @@ const (
 	G7Banned     = `\x{0}-\x{8}\x{B}-\x{C}\x{E}-\x{1F}\x{7F}\x{80}-\x{9F}\x{D800}-\x{DFFF}\x{FFFE}-\x{FFFF}`
 
 	abnfDir = "data/abnf"
-	logFN   = "gedcom7.log"
 )
 
 var (
-	logFile  *os.File
 	baseline = struct {
 		tags      map[string]TagDef
 		calendars map[string]calDef
@@ -50,18 +48,14 @@ func init() {
 
 		err error
 	)
-	logFile, err = os.OpenFile(logFN, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() { _ = logFile.Close() }()
-	logger := log.New(logFile, "GEDCOM Logger ", log.LstdFlags)
-	logger.Println("Importing Gedcom 7 configs.")
+	logger := slog.New(slog.Default().Handler()).
+		With(slog.String("logger", "GEDCOM Logger"))
+	logger.Debug("Importing Gedcom 7 configs.")
 
 	AddValidTag(TagHEAD)
 	AddValidTag(TagTRLR)
 	AddValidTag(TagCONT)
-	logger.Println("Added", TagHEAD, TagTRLR, "and", TagCONT, "tags.")
+	logger.Debug("Added tags", slog.Any("tags", []string{TagHEAD, TagTRLR, TagCONT}))
 
 	files, err := abnfFS.ReadDir(abnfDir)
 	if err != nil {
@@ -69,12 +63,13 @@ func init() {
 	}
 
 	for _, fn := range files {
+		fileLogger := logger.With(slog.String("filename", fn.Name()))
 		data, err := abnfFS.ReadFile(abnfDir + "/" + fn.Name())
 		if err != nil {
-			logger.Println("Error accessing ", fn.Name(), err.Error())
+			fileLogger.Debug("Reading file but got an error, skipping", slog.String("error", err.Error()))
 			continue
 		}
-		logger.Printf("Processing %s.\n", fn.Name())
+		fileLogger.Debug("Processing file")
 
 		name := strings.Split(fn.Name(), "-")[0]
 		switch name {
@@ -86,30 +81,30 @@ func init() {
 			continue
 		case "enumset":
 			if es, err := loadEnumSet(data); err != nil {
-				logger.Printf("Error parsing %s as enumSet\n%s\n", fn.Name(), err.Error())
+				fileLogger.Debug("Error parsing enumSet", slog.String("error", err.Error()))
 			} else {
 				enumSets[es.URI] = es
 			}
 		case "cal":
 			cm, err := loadCal(data)
 			if err != nil {
-				logger.Printf("Error parsing %s as calendar: %s\n", fn.Name(), err.Error())
+				fileLogger.Debug("Error parsing as calendar: %s", slog.String("error", err.Error()))
 			} else {
 				calendars[cm.Cal] = cm
-				logger.Printf("Added calendar %s.\n", cm.Cal)
+				fileLogger.Debug("Added calendar", slog.String("cal", cm.Cal))
 			}
 		case "type":
 			tm, err := loadType(data)
 			if err != nil {
-				logger.Printf("Error parsing %s as type: %s\n", fn.Name(), err.Error())
+				fileLogger.Debug("Error parsing as type", slog.String("error", err.Error()))
 			} else {
 				types[tm.Type] = tm
-				logger.Printf("Added type %s.\n", tm.Type)
+				fileLogger.Debug("Added type", slog.String("type", tm.Type))
 			}
 		default:
 			t, err := loadTag(data)
 			if err != nil {
-				logger.Printf("Error parsing %s as default: %s\n", fn.Name(), err.Error())
+				fileLogger.Debug("Error parsing as default", slog.String("error", err.Error()))
 			} else {
 				if name == "ord" {
 					// special case for LDS Ordinance tags
@@ -121,7 +116,7 @@ func init() {
 					t.FullTag = "record-" + t.FullTag
 				}
 				tags[t.FullTag] = t
-				logger.Printf("Loaded tag %s.\n", t.FullTag)
+				fileLogger.Debug("Loaded tag", slog.String("tag", t.FullTag))
 			}
 		}
 	}
@@ -129,11 +124,11 @@ func init() {
 	for key, tag := range tags {
 		if tag.EnumSetName != "" {
 			if es, ok := enumSets[tag.EnumSetName]; !ok {
-				logger.Printf("No matching tag for %s to %s.\n", key, tag.EnumSetName)
+				logger.Debug("No matching tag for %s to %s.\n", key, tag.EnumSetName)
 			} else {
 				tag.EnumSet = es
 				tags[key] = tag
-				logger.Printf("Added enumset %s.\n", es.FullTag)
+				logger.Debug("Added enumset", slog.String("tag", es.FullTag))
 			}
 		}
 	}
