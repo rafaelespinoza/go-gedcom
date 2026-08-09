@@ -1,6 +1,6 @@
 module github.com/funwithbots/go-gedcom
 
-go 1.21
+go 1.22
 
 require (
 	github.com/V-H-R-Oliveira/simple-uuid v1.1.0
