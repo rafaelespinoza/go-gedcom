@@ -7,7 +7,10 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"os"
 	"strings"
+
+	"github.com/funwithbots/go-gedcom/internal"
 
 	"gopkg.in/yaml.v3"
 )
@@ -48,7 +51,22 @@ func init() {
 
 		err error
 	)
-	logger := slog.New(slog.Default().Handler()).
+
+	// Environment variable to toggle debug logging.
+	const (
+		debugLogEnvKey = "GOGEDCOM_DEBUG"
+		debugLogEnvVal = "1"
+	)
+	if os.Getenv(debugLogEnvKey) == debugLogEnvVal { // Reduce the footprint of this potentially global change.
+		currentLogLevel := slog.SetLogLoggerLevel(slog.LevelDebug)
+		defer slog.SetLogLoggerLevel(currentLogLevel)
+	}
+	logHandler := internal.NewEnvFilterHandler(
+		slog.Default().Handler(),
+		debugLogEnvKey, debugLogEnvVal,
+	)
+	// This logger will only output when the environment variable is set.
+	logger := slog.New(logHandler).
 		With(slog.String("logger", "GEDCOM Logger"))
 	logger.Debug("Importing Gedcom 7 configs.")
 
