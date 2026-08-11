@@ -2,7 +2,6 @@ package gedcom7
 
 import (
 	"bufio"
-	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -116,7 +115,7 @@ func TestNewDocumentFromFile(t *testing.T) {
 				t.Fatalf("Error flushing file %s", out)
 			}
 
-			errCount, total := fileDiff(tt.file, out, 10)
+			errCount, total := fileDiff(t, tt.file, out, 10)
 			if errCount != 0 {
 				t.Errorf("NewDocument() = %d rebuilding errors; want %d errors", errCount, 0)
 			}
@@ -128,35 +127,30 @@ func TestNewDocumentFromFile(t *testing.T) {
 }
 
 // readFile reads a file and returns a buffer
-func readFile(fn string) (*bufio.Scanner, func(), error) {
+func readFile(t *testing.T, fn string) (*bufio.Scanner, func()) {
+	t.Helper()
+
 	f, err := os.Open(fn)
 	if err != nil {
-		return nil, nil, err
+		t.Fatal(err)
 	}
 	closer := func() {
 		if err = f.Close(); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 	}
 
 	s := bufio.NewScanner(f)
 
-	return s, closer, nil
+	return s, closer
 }
 
 // fileDiff compares two files line by line and returns the count of differences and total lines.
-func fileDiff(file1, file2 string, max int) (int, int) {
-	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
-	f1, close1, err := readFile(file1)
-	if err != nil {
-		log.Fatal(err)
-	}
+func fileDiff(t *testing.T, file1, file2 string, max int) (int, int) {
+	f1, close1 := readFile(t, file1)
 	defer close1()
 
-	f2, close2, err := readFile(file2)
-	if err != nil {
-		log.Fatal(err)
-	}
+	f2, close2 := readFile(t, file2)
 	defer close2()
 
 	var total, errorCount, x1 int
@@ -175,11 +169,11 @@ func fileDiff(file1, file2 string, max int) (int, int) {
 		if t1 != t2 {
 			errorCount++
 
-			log.Printf("1 '%s'\n2 '%s'\nline %d, err # %d\n----\n", t1, t2, total, errorCount)
+			t.Logf("1 '%s'\n2 '%s'\nline %d, err # %d\n----", t1, t2, total, errorCount)
 		}
 	}
 	if x1 != 0 {
-		log.Printf("%d extra lines in %s\n", x1, file1)
+		t.Logf("%d extra lines in %s", x1, file1)
 	}
 
 	var x2 int
@@ -187,7 +181,7 @@ func fileDiff(file1, file2 string, max int) (int, int) {
 		x2++
 	}
 	if x2 != 0 {
-		log.Printf("%d extra lines in %s\n", x2, file2)
+		t.Logf("%d extra lines in %s", x2, file2)
 	}
 	return errorCount, total
 }

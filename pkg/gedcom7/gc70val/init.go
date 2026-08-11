@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"os"
 	"strings"
@@ -77,7 +76,7 @@ func init() {
 
 	files, err := abnfFS.ReadDir(abnfDir)
 	if err != nil {
-		log.Fatal("unable to open abnf folder", abnfDir, err)
+		panic(fmt.Sprintf("unable to open abnf folder %s: %v", abnfDir, err))
 	}
 
 	for _, fn := range files {

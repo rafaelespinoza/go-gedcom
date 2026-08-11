@@ -1,7 +1,6 @@
 package gc70val
 
 import (
-	"log"
 	"strings"
 	"testing"
 
@@ -85,9 +84,9 @@ func debugInferRule(t *testing.T, tm TagDef) {
 
 		}
 	} else {
-		log.Printf("%v: No URI.\n", tm.Tag)
+		t.Logf("%v: No URI.", tm.Tag)
 	}
-	log.Println("=======================================")
+	t.Log("=======================================")
 }
 
 func Test_toUpperCamel(t *testing.T) {

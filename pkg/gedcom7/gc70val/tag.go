@@ -3,7 +3,7 @@ package gc70val
 import (
 	_ "embed"
 	"errors"
-	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/funwithbots/go-abnf/operators"
@@ -159,11 +159,11 @@ func (t *TagDef) InferRule() {
 			uc := toUpperCamel(parts[len(parts)-1])
 			t.Rule = abnf.Validation[uc]
 		default:
-			fmt.Printf(t.Tag)
+			slog.Debug(t.Tag)
 		}
 	}
 	if t.Rule == nil {
-		fmt.Printf(t.Tag)
+		slog.Debug(t.Tag)
 	}
 }
 
